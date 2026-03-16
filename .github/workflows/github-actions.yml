@@ -1,0 +1,75 @@
+name: Local Minikube CI-CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-to-local-minikube:
+    name: Build and Deploy to Local Minikube
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required tools
+        shell: pwsh
+        run: |
+          kubectl version --client
+          minikube version
+          docker version
+
+      - name: Ensure minikube is running
+        shell: pwsh
+        run: |
+          minikube start --driver=docker
+          kubectl config use-context minikube
+
+      - name: Build images inside minikube
+        shell: pwsh
+        run: |
+          $tag = "${{ github.sha }}".Substring(0, 7)
+          Write-Host "Using image tag: $tag"
+          minikube image build -t jerney-backend:$tag backend
+          minikube image build -t jerney-frontend:$tag frontend
+          "IMAGE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Heal stale PVC from previous storage class changes
+        shell: pwsh
+        run: |
+          kubectl get namespace jerney 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $pvcSc = kubectl -n jerney get pvc jerney-db-pvc -o jsonpath='{.spec.storageClassName}' 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pvcSc -ne "hostpath") {
+              Write-Host "PVC storage class is '$pvcSc' and needs reset to hostpath"
+              kubectl -n jerney delete deployment jerney-db --ignore-not-found=true
+              kubectl -n jerney delete pvc jerney-db-pvc --ignore-not-found=true
+            }
+          }
+
+      - name: Apply manifest and update image tags
+        shell: pwsh
+        run: |
+          kubectl apply -f k8s/jerney-minikube.yaml
+          kubectl -n jerney set image deployment/jerney-backend backend=jerney-backend:$env:IMAGE_TAG
+          kubectl -n jerney set image deployment/jerney-frontend frontend=jerney-frontend:$env:IMAGE_TAG
+
+      - name: Wait for rollouts
+        shell: pwsh
+        run: |
+          kubectl -n jerney rollout status deployment/jerney-db --timeout=180s
+          kubectl -n jerney rollout status deployment/jerney-backend --timeout=180s
+          kubectl -n jerney rollout status deployment/jerney-frontend --timeout=180s
+
+      - name: Show deployment state
+        shell: pwsh
+        run: |
+          kubectl get pods -n jerney -o wide
+          kubectl get svc -n jerney
+          minikube service jerney-frontend -n jerney --url
