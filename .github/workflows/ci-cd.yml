@@ -180,7 +180,7 @@ jobs:
         with:
           directory: terraform/
           framework: terraform
-          soft_fail: false
+          soft_fail: "false"
           skip_check: CKV_AWS_39,CKV_AWS_58  # Public EKS endpoint (intentional for dev)
           output_format: cli
 
@@ -189,7 +189,7 @@ jobs:
         with:
           directory: k8s/
           framework: kubernetes
-          soft_fail: true  # Soft fail for K8s (some checks may not apply)
+          soft_fail: "true"  # Soft fail for K8s (some checks may not apply)
           output_format: cli
 
   # ==============================================================
