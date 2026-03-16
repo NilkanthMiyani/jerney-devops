@@ -163,7 +163,7 @@ jobs:
           severity: "CRITICAL,HIGH"
           timeout: "10m"
 
-  # ==============================================================
+# ==============================================================
   # STAGE 5: IaC Security Scan (Checkov) — Terraform + K8s
   # ==============================================================
   iac-scan:
@@ -175,23 +175,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Checkov on Terraform
-        uses: bridgecrewio/checkov-action@v12
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          directory: terraform/
-          framework: terraform
-          soft_fail: false
-          skip_check: CKV_AWS_39,CKV_AWS_58  # Public EKS endpoint (intentional for dev)
-          output_format: cli
+          python-version: "3.11"
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov on Terraform
+        run: checkov -d terraform/ --framework terraform --skip-check CKV_AWS_39,CKV_AWS_58
 
       - name: Run Checkov on Kubernetes manifests
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: k8s/
-          framework: kubernetes
-          soft_fail: true  # Soft fail for K8s (some checks may not apply)
-          output_format: cli
-
+        # Using --soft-fail flag to prevent pipeline failure on K8s warnings
+        run: checkov -d k8s/ --framework kubernetes --soft-fail
+        
   # ==============================================================
   # STAGE 6: Dockerfile Lint (Hadolint)
   # ==============================================================
