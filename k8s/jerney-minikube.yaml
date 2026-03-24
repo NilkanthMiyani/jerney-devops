@@ -178,7 +178,7 @@ spec:
               echo "DB is ready!"
       containers:
         - name: backend
-          image: docker.io/nmiyani/jerney-backend:ce1b8fb
+          image: docker.io/nmiyani/jerney-backend:ef0f7c4
           ports:
             - containerPort: 5000
               protocol: TCP
@@ -281,7 +281,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: frontend
-          image: docker.io/nmiyani/jerney-frontend:ce1b8fb
+          image: docker.io/nmiyani/jerney-frontend:ef0f7c4
           ports:
             - containerPort: 8080
               protocol: TCP
