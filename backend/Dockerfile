@@ -23,4 +23,4 @@ USER appuser
 EXPOSE 5000
 
 ENTRYPOINT [ "dumb-init", "--"]
-CMD ["node", "src/index.js"]
+CMD ["node", "--require", "@opentelemetry/auto-instrumentations-node/register", "src/index.js"]

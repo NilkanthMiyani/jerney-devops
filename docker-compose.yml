@@ -8,22 +8,30 @@ services:
       POSTGRES_PASSWORD: jerney_pass_2026
       POSTGRES_DB: jerney_db
     ports:
-    - "5432:5432"
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jerney_user -d jerney_db"]
+      test: [ "CMD-SHELL", "pg_isready -U jerney_user -d jerney_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     # Security: read-only root filesystem where possible
     tmpfs:
-    - /tmp
-    - /run
+      - /tmp
+      - /run
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '0.5'
+        reservations:
+          memory: 256m
+          cpus: '0.25'
 
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: jerney-backend
@@ -35,17 +43,33 @@ services:
       DB_USER: jerney_user
       DB_PASSWORD: jerney_pass_2026
       DB_NAME: jerney_db
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=jerney-backend"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://signoz-otel-collector:4317"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    volumes:
+      - ./data/backend:/app/data
     expose:
       - "5000"
     depends_on:
       db:
-        condition: service_healthy  
-    
+        condition: service_healthy
+
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.5'
+        reservations:
+          memory: 128m
+          cpus: '0.25'
+    networks:
+      - signoz-net
+      - default
 
   frontend:
     build:
@@ -54,12 +78,20 @@ services:
     container_name: jerney-frontend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3000:8080"
     depends_on:
       - backend
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.25'
+        reservations:
+          memory: 64m
+          cpus: '0.10'
 
-volumes:
-  pgdata:
-    driver: local
+networks:
+  signoz-net:
+    external: true

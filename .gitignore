@@ -16,3 +16,13 @@ terraform/crash.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Database volume data
+data/
+
+# Temp / debug files
+*.txt
+
+# Accidental root-level npm files (app deps live in backend/ and frontend/)
+/package.json
+/package-lock.json

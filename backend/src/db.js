@@ -11,6 +11,7 @@ const pool = new Pool({
 async function initDB() {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     await client.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
@@ -32,8 +33,16 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-
+    await client.query('COMMIT');
     console.log('✅ Database tables initialized');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    // 42P07 = duplicate_table, 23505 = unique_violation (pg_type race on concurrent init)
+    if (err.code === '42P07' || err.code === '23505') {
+      console.log('✅ Database tables already exist');
+    } else {
+      throw err;
+    }
   } finally {
     client.release();
   }
