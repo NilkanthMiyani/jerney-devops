@@ -204,6 +204,12 @@ spec:
                 secretKeyRef:
                   name: jerney-db-secret
                   key: POSTGRES_DB
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://signoz-otel-collector.platform.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=jerney-backend"
           resources:
             requests:
               cpu: 100m
