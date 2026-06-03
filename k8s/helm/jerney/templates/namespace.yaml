@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace | default "jerney" }}
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name }}

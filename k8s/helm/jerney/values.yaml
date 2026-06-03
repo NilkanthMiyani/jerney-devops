@@ -1,0 +1,43 @@
+# Default values for jerney.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount:
+  backend: 2
+  frontend: 2
+
+image:
+  backend:
+    repository: docker.io/nmiyani/jerney-backend
+    tag: fb14974
+  frontend:
+    repository: docker.io/nmiyani/jerney-frontend
+    tag: fb14974
+
+postgresql:
+  enabled: true
+  auth:
+    username: jerney_user
+    password: jerney_pass_2026
+    database: jerney_db
+  primary:
+    persistence:
+      size: 10Gi
+      storageClass: hostpath
+
+otel:
+  endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
+
+service:
+  frontend:
+    type: NodePort
+    port: 80
+    targetPort: 8080
+  backend:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  db:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
