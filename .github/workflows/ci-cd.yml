@@ -8,10 +8,7 @@
 name: Jerney DevSecOps Pipeline
 
 on:
-  push:
-    branches: ["*"]
-  pull_request:
-    branches: ["*"]
+  workflow_dispatch:
 
 # Security: restrict default permissions to read-only
 permissions:
