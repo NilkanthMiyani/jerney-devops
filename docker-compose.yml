@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: jerney_user
-      POSTGRES_PASSWORD: jerney_pass_2026
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: jerney_db
     ports:
       - "5432:5432"
@@ -41,7 +41,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: jerney_user
-      DB_PASSWORD: jerney_pass_2026
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: jerney_db
       OTEL_RESOURCE_ATTRIBUTES: "service.name=jerney-backend"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://signoz-otel-collector:4317"

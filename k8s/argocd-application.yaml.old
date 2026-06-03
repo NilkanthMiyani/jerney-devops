@@ -8,9 +8,10 @@ spec:
   source:
     repoURL: https://github.com/NilkanthMiyani/jerney-devops.git
     targetRevision: main
-    path: k8s/helm/jerney
-    # ArgoCD automatically detects it's a Helm chart because a Chart.yaml exists in this path.
-    # We no longer need the `directory:` block.
+    path: k8s
+    directory:
+      recurse: false
+      include: jerney-minikube.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: jerney
