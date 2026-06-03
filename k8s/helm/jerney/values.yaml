@@ -8,10 +8,10 @@ replicaCount:
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: 857b19b
+    tag: 484a4a0
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: 857b19b
+    tag: 484a4a0
 postgresql:
   enabled: true
   auth:
