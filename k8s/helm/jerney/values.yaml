@@ -5,15 +5,13 @@
 replicaCount:
   backend: 2
   frontend: 2
-
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: fb14974
+    tag: bb15588
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: fb14974
-
+    tag: bb15588
 postgresql:
   enabled: true
   auth:
@@ -24,10 +22,8 @@ postgresql:
     persistence:
       size: 10Gi
       storageClass: hostpath
-
 otel:
   endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
-
 service:
   frontend:
     type: NodePort
