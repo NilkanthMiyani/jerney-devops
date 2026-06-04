@@ -23,7 +23,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Chart.Name }}-backend-allow-frontend-only
+  name: {{ .Chart.Name }}-backend-allow-frontend-and-ingress
 spec:
   podSelector:
     matchLabels:
@@ -31,10 +31,19 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # Allow from frontend pods (same namespace)
     - from:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: {{ .Chart.Name }}-frontend
+      ports:
+        - port: 5000
+          protocol: TCP
+    # Allow from NGINX Ingress Controller (for /api routes)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
       ports:
         - port: 5000
           protocol: TCP

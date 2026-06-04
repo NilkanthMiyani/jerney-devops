@@ -23,12 +23,12 @@ postgresql:
   primary:
     persistence:
       size: 10Gi
-      storageClass: hostpath
+      storageClass: "" # Uses cluster default (local-path on kubeadm)
 otel:
   endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
 service:
   frontend:
-    type: NodePort
+    type: ClusterIP
     port: 80
     targetPort: 8080
   backend:
@@ -39,3 +39,9 @@ service:
     type: ClusterIP
     port: 5432
     targetPort: 5432
+
+# Ingress configuration
+ingress:
+  enabled: true
+  host: jerney.nilkanthprojects.site
+  clusterIssuer: letsencrypt-prod

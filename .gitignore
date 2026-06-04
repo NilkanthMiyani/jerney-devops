@@ -9,6 +9,11 @@ terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
 terraform/crash.log
+terraform-ec2/.terraform/
+terraform-ec2/*.tfstate
+terraform-ec2/*.tfstate.backup
+terraform-ec2/.terraform.lock.hcl
+terraform/crash.log
 
 # Docker
 *.tar
