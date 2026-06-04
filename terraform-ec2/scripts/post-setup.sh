@@ -78,22 +78,21 @@ echo ""
 
 # ---- 4. Install ArgoCD ----
 echo "🔄 Installing ArgoCD..."
-kubectl create namespace argocd || true
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+helm install argo-cd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --version 7.8.0 \
+  --set server.insecure=true
 
 echo "⏳ Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=Ready pods --all -n argocd --timeout=600s
 echo "✅ ArgoCD installed"
 echo ""
 
-# ---- 5. Patch ArgoCD to run insecure (TLS terminated at Ingress) ----
-echo "🔧 Configuring ArgoCD for Ingress..."
-kubectl -n argocd patch deployment argocd-server --type='json' \
-  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]'
-
-echo ""
-
-# ---- 6. Install SigNoz ----
+# ---- 5. Install SigNoz ----
 echo "📊 Installing SigNoz..."
 helm repo add signoz https://charts.signoz.io
 helm repo update
@@ -109,7 +108,7 @@ kubectl wait --for=condition=Ready pods -l app.kubernetes.io/component=frontend 
 echo "✅ SigNoz installed"
 echo ""
 
-# ---- 7. Apply Ingress Resources ----
+# ---- 6. Apply Ingress Resources ----
 echo "🌐 Applying Ingress resources..."
 
 # ArgoCD Ingress
@@ -172,7 +171,7 @@ EOF
 echo "✅ Ingress resources applied"
 echo ""
 
-# ---- 8. Deploy Jerney via ArgoCD ----
+# ---- 7. Deploy Jerney via ArgoCD ----
 echo "🛤️  Deploying Jerney application via ArgoCD..."
 cat <<EOF | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
