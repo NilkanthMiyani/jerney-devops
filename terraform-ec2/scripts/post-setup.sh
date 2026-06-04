@@ -3,7 +3,11 @@
 # Jerney - Post Kubeadm Setup
 # Run this AFTER SSH-ing into the EC2 instance
 # Installs: NGINX Ingress, cert-manager, ArgoCD, SigNoz
+#
+# Manifests are in: terraform-ec2/manifests/
 # ==============================================================
+
+MANIFESTS_DIR="$(cd "$(dirname "$0")/../manifests" && pwd)"
 
 set -e
 
@@ -57,22 +61,7 @@ echo ""
 
 # ---- 3. Create Let's Encrypt ClusterIssuer ----
 echo "📜 Creating Let's Encrypt ClusterIssuer..."
-cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: miyaninilkanth2@gmail.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-      - http01:
-          ingress:
-            class: nginx
-EOF
+kubectl apply -f "$MANIFESTS_DIR/clusterissuer.yaml"
 echo "✅ ClusterIssuer created"
 echo ""
 
@@ -110,91 +99,14 @@ echo ""
 
 # ---- 6. Apply Ingress Resources ----
 echo "🌐 Applying Ingress resources..."
-
-# ArgoCD Ingress
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argocd-ingress
-  namespace: argocd
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts:
-        - argocd.nilkanthprojects.site
-      secretName: argocd-tls
-  rules:
-    - host: argocd.nilkanthprojects.site
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: argocd-server
-                port:
-                  number: 80
-EOF
-
-# SigNoz Ingress
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: signoz-ingress
-  namespace: platform
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts:
-        - signoz.nilkanthprojects.site
-      secretName: signoz-tls
-  rules:
-    - host: signoz.nilkanthprojects.site
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: signoz
-                port:
-                  number: 8080
-EOF
-
+kubectl apply -f "$MANIFESTS_DIR/argocd-ingress.yaml"
+kubectl apply -f "$MANIFESTS_DIR/signoz-ingress.yaml"
 echo "✅ Ingress resources applied"
 echo ""
 
 # ---- 7. Deploy Jerney via ArgoCD ----
 echo "🛤️  Deploying Jerney application via ArgoCD..."
-cat <<EOF | kubectl apply -f -
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: jerney
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/NilkanthMiyani/jerney-devops.git
-    targetRevision: main
-    path: k8s/helm/jerney
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: jerney
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-EOF
+kubectl apply -f "$MANIFESTS_DIR/argocd-app-jerney.yaml"
 echo "✅ ArgoCD Application created"
 echo ""
 
