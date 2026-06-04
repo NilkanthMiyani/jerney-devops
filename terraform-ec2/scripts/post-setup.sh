@@ -164,9 +164,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: signoz-frontend
+                name: signoz
                 port:
-                  number: 3301
+                  number: 8080
 EOF
 
 echo "✅ Ingress resources applied"
