@@ -8,10 +8,10 @@ replicaCount:
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: 582069f
+    tag: a06cc0c
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: 582069f
+    tag: a06cc0c
 postgresql:
   enabled: true
   image:
@@ -39,7 +39,6 @@ service:
     type: ClusterIP
     port: 5432
     targetPort: 5432
-
 # Ingress configuration
 ingress:
   enabled: true
