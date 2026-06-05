@@ -17,6 +17,10 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}-backend
         app.kubernetes.io/part-of: {{ .Chart.Name }}
         app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
     spec:
       automountServiceAccountToken: false
       initContainers:

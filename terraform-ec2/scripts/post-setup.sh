@@ -108,18 +108,54 @@ helm install signoz signoz/signoz \
 
 echo "⏳ Waiting for SigNoz pods (this may take a few minutes)..."
 sleep 30
-kubectl wait --for=condition=Ready pods -l app.kubernetes.io/component=frontend -n platform --timeout=600s || true
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/component=frontend -n platform --timeout=300s || true
 echo "✅ SigNoz installed"
 echo ""
 
-# ---- 7. Apply Ingress Resources ----
+# ---- 7. Install Prometheus + Grafana (kube-prometheus-stack) ----
+echo "📊 Installing Prometheus + Grafana..."
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install kube-prom prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --set grafana.adminPassword=admin123 \
+  --set grafana.service.type=ClusterIP \
+  --set grafana.ingress.enabled=false \
+  --set prometheus.prometheusSpec.podMonitorSelectorNilMatchesAll=true \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilMatchesAll=true
+
+echo "⏳ Waiting for Prometheus + Grafana to be ready..."
+kubectl wait --for=condition=available deployment --all -n monitoring --timeout=300s
+echo "✅ Prometheus + Grafana installed"
+echo ""
+
+# ---- 8. Install Loki + Promtail ----
+echo "🪵 Installing Loki + Promtail..."
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+
+helm install loki grafana/loki-stack \
+  --namespace monitoring \
+  --set loki.enabled=true \
+  --set promtail.enabled=true \
+  --set grafana.enabled=false
+
+echo "⏳ Waiting for Loki to be ready..."
+kubectl wait --for=condition=Ready pods -l app=loki -n monitoring --timeout=120s || true
+echo "✅ Loki + Promtail installed"
+echo ""
+
+# ---- 9. Apply Ingress Resources ----
 echo "🌐 Applying Ingress resources..."
 kubectl apply -f "$MANIFESTS_DIR/argocd-ingress.yaml"
 kubectl apply -f "$MANIFESTS_DIR/signoz-ingress.yaml"
+kubectl apply -f "$MANIFESTS_DIR/grafana-ingress.yaml"
 echo "✅ Ingress resources applied"
 echo ""
 
-# ---- 8. Deploy Jerney via ArgoCD ----
+# ---- 10. Deploy Jerney via ArgoCD ----
 echo "🛤️  Deploying Jerney application via ArgoCD..."
 kubectl apply -f "$MANIFESTS_DIR/argocd-app-jerney.yaml"
 echo "✅ ArgoCD Application created"
@@ -134,11 +170,18 @@ echo ""
 echo "📋 ArgoCD Admin Password:"
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 echo ""
+echo "📋 Grafana Admin Password: admin123"
+echo "   (change after first login)"
 echo ""
 echo "🌐 Your Services:"
 echo "  Frontend → https://jerney.nilkanthprojects.site"
 echo "  ArgoCD   → https://argocd.nilkanthprojects.site"
 echo "  SigNoz   → https://signoz.nilkanthprojects.site"
+echo "  Grafana  → https://grafana.nilkanthprojects.site"
+echo ""
+echo "📋 After logging into Grafana, add Loki as a data source:"
+echo "   Connections → Data Sources → Add → Loki"
+echo "   URL: http://loki.monitoring.svc.cluster.local:3100"
 echo ""
 echo "📋 Check status:"
 echo "  kubectl get ingress -A"
