@@ -1,0 +1,247 @@
+# ==============================================================
+# Jerney - DevSecOps CI/CD Pipeline (CircleCI)
+# Mirrors: .github/workflows/helm-ci-cd.yml
+#
+# Key CircleCI concepts used here:
+#   - orbs       → reusable packages (like GitHub Actions "uses:")
+#   - executors  → reusable runtime environments
+#   - parameters → makes jobs accept inputs (enables matrix-style runs)
+#   - matrix     → run same job for [backend, frontend] in parallel
+#   - requires   → job dependency (like GitHub Actions "needs:")
+#   - context    → named secret store (like GitHub Actions secrets)
+#   - filters    → branch/tag conditions on workflow jobs
+# ==============================================================
+
+version: 2.1
+
+# ---- Orbs (reusable packages) ----
+# GitHub Actions equivalent: "uses: actions/..."
+orbs:
+  node: circleci/node@5       # node install, npm cache
+  docker: circleci/docker@2   # docker login helpers
+
+# ---- Reusable executors (runtime environments) ----
+executors:
+  node-executor:
+    docker:
+      - image: cimg/node:20.0   # convenience image with Node 20
+  python-executor:
+    docker:
+      - image: cimg/python:3.11
+
+# ==============================================================
+# JOBS
+# ==============================================================
+jobs:
+
+  # ---- Stage 1: Lint ----
+  # parameters: make this job reusable for backend and frontend
+  lint:
+    parameters:
+      component:
+        type: string   # receives "backend" or "frontend"
+    executor: node-executor
+    steps:
+      - checkout       # CircleCI equivalent of actions/checkout
+      - node/install-packages:
+          pkg-manager: npm
+          app-dir: << parameters.component >>
+      - run:
+          name: Run ESLint
+          working_directory: << parameters.component >>
+          command: npm run lint
+
+  # ---- Stage 2: SCA (Dependency Audit) ----
+  sca:
+    parameters:
+      component:
+        type: string
+    executor: node-executor
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+          app-dir: << parameters.component >>
+      - run:
+          name: npm audit
+          working_directory: << parameters.component >>
+          command: npm audit --audit-level=high || true
+
+  # ---- Stage 3: Build & Push Docker Image ----
+  build:
+    parameters:
+      component:
+        type: string
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - setup_remote_docker:         # spins up a remote Docker engine
+          docker_layer_caching: false  # set true on paid plan for speed
+      - run:
+          name: Build and push image
+          command: |
+            IMAGE_TAG=$(git rev-parse --short HEAD)
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            docker build \
+              -t docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:${IMAGE_TAG} \
+              -t docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:latest \
+              ./<< parameters.component >>
+
+            # Only push on branch commits (not on PRs)
+            # CircleCI equivalent of: if: github.event_name != 'pull_request'
+            if [ "$CIRCLE_PR_NUMBER" = "" ]; then
+              docker push docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:${IMAGE_TAG}
+              docker push docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:latest
+            fi
+
+  # ---- Stage 4: Image Scan (Trivy) ----
+  image-scan:
+    parameters:
+      component:
+        type: string
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Build image for scanning
+          command: docker build -t jerney-<< parameters.component >>:scan ./<< parameters.component >>
+      - run:
+          name: Install Trivy
+          command: |
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sh -s -- -b /usr/local/bin
+      - run:
+          name: Run Trivy vulnerability scan
+          command: |
+            trivy image \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --vuln-type os,library \
+              --severity CRITICAL,HIGH \
+              --timeout 10m \
+              jerney-<< parameters.component >>:scan || true
+
+  # ---- Stage 5: IaC Scan (Checkov) ----
+  iac-scan:
+    executor: python-executor
+    steps:
+      - checkout
+      - run:
+          name: Install Checkov
+          command: pip install checkov
+      - run:
+          name: Checkov - Terraform
+          command: checkov -d terraform-ec2/ --framework terraform --skip-check CKV_AWS_39,CKV_AWS_58 || true
+      - run:
+          name: Checkov - Kubernetes manifests
+          command: checkov -d k8s/ --framework kubernetes --soft-fail
+
+  # ---- Stage 6: Dockerfile Lint (Hadolint) ----
+  dockerfile-lint:
+    parameters:
+      component:
+        type: string
+    docker:
+      - image: hadolint/hadolint:latest-debian
+    steps:
+      - checkout
+      - run:
+          name: Run Hadolint
+          command: hadolint << parameters.component >>/Dockerfile || true
+
+  # ---- Stage 7: Update Helm Values ----
+  # Runs only on main branch (see workflow filters below)
+  update-manifest:
+    executor: node-executor
+    steps:
+      - checkout
+      - run:
+          name: Install yq
+          command: |
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod a+x /usr/local/bin/yq
+      - run:
+          name: Update Helm image tags
+          command: |
+            IMAGE_TAG=$(git rev-parse --short HEAD)
+            echo "Updating images to tag: ${IMAGE_TAG}"
+            yq e ".image.backend.tag = \"${IMAGE_TAG}\"" -i k8s/helm/jerney/values.yaml
+            yq e ".image.frontend.tag = \"${IMAGE_TAG}\"" -i k8s/helm/jerney/values.yaml
+      - run:
+          name: Commit and push manifest update
+          command: |
+            git config user.name "circleci-bot"
+            git config user.email "circleci-bot@noreply"
+            git add k8s/helm/jerney/values.yaml
+            git diff --cached --quiet && echo "No changes" && exit 0
+            git commit -m "ci: update helm image tags to $(git rev-parse --short HEAD) [skip ci]"
+            git pull --rebase origin main
+            # GITHUB_TOKEN must be a PAT added in CircleCI Project Settings > Env Vars
+            git push https://${GITHUB_TOKEN}@github.com/NilkanthMiyani/jerney-devops.git main
+
+# ==============================================================
+# WORKFLOW — wires jobs together with dependencies and conditions
+# GitHub Actions equivalent: the top-level "jobs:" with "needs:"
+# ==============================================================
+workflows:
+  devsecops:
+    jobs:
+      # Stage 1 — runs for both components in parallel (matrix)
+      - lint:
+          matrix:
+            parameters:
+              component: [backend, frontend]
+
+      # Stage 2 — waits for ALL lint matrix variants to pass
+      - sca:
+          requires:
+            - lint
+          matrix:
+            parameters:
+              component: [backend, frontend]
+
+      # Stage 3 — waits for sca, needs dockerhub context for secrets
+      # context: group of env vars defined in CircleCI org settings
+      # GitHub Actions equivalent: secrets.DOCKERHUB_USERNAME / secrets.DOCKERHUB_TOKEN
+      - build:
+          requires:
+            - sca
+          context: dockerhub        # set DOCKERHUB_USERNAME + DOCKERHUB_TOKEN here
+          matrix:
+            parameters:
+              component: [backend, frontend]
+
+      # Stage 4 — image scan after build
+      - image-scan:
+          requires:
+            - build
+          matrix:
+            parameters:
+              component: [backend, frontend]
+
+      # Stage 5 — runs in parallel with sca (like GitHub Actions "needs: lint")
+      - iac-scan:
+          requires:
+            - lint
+
+      # Stage 6 — runs independently (no requires = runs immediately)
+      - dockerfile-lint:
+          matrix:
+            parameters:
+              component: [backend, frontend]
+
+      # Stage 7 — only on main branch, after both builds complete
+      # filters: branch condition (GitHub Actions equivalent: "if: github.ref == 'refs/heads/main'")
+      - update-manifest:
+          requires:
+            - build
+          context: dockerhub        # also needs GITHUB_TOKEN in this context or project settings
+          filters:
+            branches:
+              only: main

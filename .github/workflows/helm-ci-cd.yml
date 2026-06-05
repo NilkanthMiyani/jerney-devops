@@ -8,8 +8,7 @@
 name: Jerney DevSecOps Pipeline (Helm)
 
 on:
-  push:
-    branches: ["*"]
+  workflow_dispatch:   # manual trigger from GitHub Actions UI
   pull_request:
     branches: ["*"]
 
