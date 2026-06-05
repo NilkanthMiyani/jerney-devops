@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Chart.Name }}
     app.kubernetes.io/component: frontend
 spec:
-  replicas: {{ .Values.replicaCount.frontend }}
+  # replicas managed by HPA
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ .Chart.Name }}-frontend

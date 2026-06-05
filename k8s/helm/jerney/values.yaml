@@ -2,9 +2,20 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount:
-  backend: 2
-  frontend: 2
+# replicaCount is managed by HPA
+# replicaCount:
+#   backend: 2
+#   frontend: 2
+
+hpa:
+  frontend:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 50
+  backend:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 50
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend

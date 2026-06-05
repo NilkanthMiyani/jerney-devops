@@ -7,9 +7,9 @@
 # Manifests are in: terraform-ec2/manifests/
 # ==============================================================
 
-MANIFESTS_DIR="$(cd "$(dirname "$0")/../manifests" && pwd)"
-
 set -e
+
+MANIFESTS_DIR="$(cd "$(dirname "$0")/../manifests" && pwd)"
 
 echo "=== Jerney Post-Setup Script ==="
 echo "================================"
@@ -25,7 +25,22 @@ echo "⏳ Waiting for system pods to be ready..."
 kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s || true
 echo ""
 
-# ---- 1. Install NGINX Ingress Controller ----
+# ---- 1. Install Metrics Server ----
+echo "📈 Installing Metrics Server..."
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm repo update
+
+helm install metrics-server metrics-server/metrics-server \
+  --namespace kube-system \
+  --set args[0]="--kubelet-insecure-tls"
+
+echo "⏳ Waiting for Metrics Server to be ready..."
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=metrics-server -n kube-system --timeout=120s
+echo "✅ Metrics Server installed"
+echo ""
+
+# ---- 2. Install NGINX Ingress Controller ----
+
 echo "🌐 Installing NGINX Ingress Controller..."
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
@@ -44,7 +59,7 @@ kubectl wait --for=condition=Ready pods -l app.kubernetes.io/component=controlle
 echo "✅ NGINX Ingress Controller installed"
 echo ""
 
-# ---- 2. Install cert-manager ----
+# ---- 3. Install cert-manager ----
 echo "🔐 Installing cert-manager..."
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
@@ -59,13 +74,13 @@ kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=300s
 echo "✅ cert-manager installed"
 echo ""
 
-# ---- 3. Create Let's Encrypt ClusterIssuer ----
+# ---- 4. Create Let's Encrypt ClusterIssuer ----
 echo "📜 Creating Let's Encrypt ClusterIssuer..."
 kubectl apply -f "$MANIFESTS_DIR/clusterissuer.yaml"
 echo "✅ ClusterIssuer created"
 echo ""
 
-# ---- 4. Install ArgoCD ----
+# ---- 5. Install ArgoCD ----
 echo "🔄 Installing ArgoCD..."
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
@@ -73,15 +88,14 @@ helm repo update
 helm install argo-cd argo/argo-cd \
   --namespace argocd \
   --create-namespace \
-  --version 7.8.0 \
-  --set server.insecure=true
+  --set 'configs.params.server\.insecure=true'
 
 echo "⏳ Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=Ready pods --all -n argocd --timeout=600s
 echo "✅ ArgoCD installed"
 echo ""
 
-# ---- 5. Install SigNoz ----
+# ---- 6. Install SigNoz ----
 echo "📊 Installing SigNoz..."
 helm repo add signoz https://charts.signoz.io
 helm repo update
@@ -97,14 +111,14 @@ kubectl wait --for=condition=Ready pods -l app.kubernetes.io/component=frontend 
 echo "✅ SigNoz installed"
 echo ""
 
-# ---- 6. Apply Ingress Resources ----
+# ---- 7. Apply Ingress Resources ----
 echo "🌐 Applying Ingress resources..."
 kubectl apply -f "$MANIFESTS_DIR/argocd-ingress.yaml"
 kubectl apply -f "$MANIFESTS_DIR/signoz-ingress.yaml"
 echo "✅ Ingress resources applied"
 echo ""
 
-# ---- 7. Deploy Jerney via ArgoCD ----
+# ---- 8. Deploy Jerney via ArgoCD ----
 echo "🛤️  Deploying Jerney application via ArgoCD..."
 kubectl apply -f "$MANIFESTS_DIR/argocd-app-jerney.yaml"
 echo "✅ ArgoCD Application created"
