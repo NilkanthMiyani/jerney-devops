@@ -114,7 +114,7 @@ jobs:
           name: Install Trivy
           command: |
             curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-              | sh -s -- -b /usr/local/bin
+              | sudo sh -s -- -b /usr/local/bin
       - run:
           name: Run Trivy vulnerability scan
           command: |
