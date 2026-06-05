@@ -91,7 +91,8 @@ helm install argo-cd argo/argo-cd \
   --set 'configs.params.server\.insecure=true'
 
 echo "⏳ Waiting for ArgoCD to be ready..."
-kubectl wait --for=condition=Ready pods --all -n argocd --timeout=600s
+kubectl wait --for=condition=available deployment --all -n argocd --timeout=300s
+kubectl rollout status statefulset/argo-cd-argocd-application-controller -n argocd --timeout=300s
 echo "✅ ArgoCD installed"
 echo ""
 
