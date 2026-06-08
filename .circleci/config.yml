@@ -24,7 +24,7 @@ orbs:
 executors:
   node-executor:
     docker:
-      - image: cimg/node:20.0   # convenience image with Node 20
+      - image: cimg/node:20.18   # >=20.6.0 required by OpenTelemetry packages
   python-executor:
     docker:
       - image: cimg/python:3.11
