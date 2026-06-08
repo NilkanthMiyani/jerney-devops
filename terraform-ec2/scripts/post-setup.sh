@@ -9,7 +9,8 @@
 
 set -e
 
-MANIFESTS_DIR="$(cd "$(dirname "$0")/../manifests" && pwd)"
+REPO_DIR="/home/ubuntu/jerney-devops"
+MANIFESTS_DIR="$REPO_DIR/terraform-ec2/manifests"
 
 echo "=== Jerney Post-Setup Script ==="
 echo "================================"
@@ -117,14 +118,49 @@ echo "📊 Installing Prometheus + Grafana..."
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
+# Write values file so Prometheus scrapes pods with prometheus.io/scrape: "true" annotations
+cat <<'EOF' > /tmp/prom-values.yaml
+grafana:
+  adminPassword: admin123
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+prometheus:
+  prometheusSpec:
+    podMonitorSelectorNilMatchesAll: true
+    serviceMonitorSelectorNilMatchesAll: true
+    additionalScrapeConfigs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+EOF
+
 helm install kube-prom prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace \
-  --set grafana.adminPassword=admin123 \
-  --set grafana.service.type=ClusterIP \
-  --set grafana.ingress.enabled=false \
-  --set prometheus.prometheusSpec.podMonitorSelectorNilMatchesAll=true \
-  --set prometheus.prometheusSpec.serviceMonitorSelectorNilMatchesAll=true
+  --values /tmp/prom-values.yaml
 
 echo "⏳ Waiting for Prometheus + Grafana to be ready..."
 kubectl wait --for=condition=available deployment --all -n monitoring --timeout=300s
@@ -143,7 +179,9 @@ helm install loki grafana/loki-stack \
   --set grafana.enabled=false
 
 echo "⏳ Waiting for Loki to be ready..."
-kubectl wait --for=condition=Ready pods -l app=loki -n monitoring --timeout=120s || true
+kubectl wait --for=condition=Ready pods -l app=loki -n monitoring --timeout=120s \
+  || kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=loki -n monitoring --timeout=60s \
+  || true
 echo "✅ Loki + Promtail installed"
 echo ""
 

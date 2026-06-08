@@ -88,6 +88,10 @@ kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisione
 # Set local-path as default StorageClass
 kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
+# ---- Clone repo (manifests needed by post-setup.sh) ----
+git clone https://github.com/NilkanthMiyani/jerney-devops.git /home/ubuntu/jerney-devops
+chown -R ubuntu:ubuntu /home/ubuntu/jerney-devops
+
 echo ""
 echo "=== Kubeadm Setup Completed at $(date) ==="
-echo "=== SSH in and run the post-setup script to install Ingress, ArgoCD, SigNoz ==="
+echo "=== SSH in and run: bash /home/ubuntu/jerney-devops/terraform-ec2/scripts/post-setup.sh ==="
