@@ -176,7 +176,8 @@ helm install loki grafana/loki-stack \
   --namespace monitoring \
   --set loki.enabled=true \
   --set promtail.enabled=true \
-  --set grafana.enabled=false
+  --set grafana.enabled=false \
+  --set loki.image.tag=2.9.10
 
 echo "⏳ Waiting for Loki to be ready..."
 kubectl wait --for=condition=Ready pods -l app=loki -n monitoring --timeout=120s \
