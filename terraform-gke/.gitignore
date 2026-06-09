@@ -9,6 +9,9 @@
 crash.log
 crash.*.log
 
+# Claude skill definition (IDE tooling, not project code)
+claude.md
+
 # Override files (local developer overrides, not for source control)
 override.tf
 override.tf.json

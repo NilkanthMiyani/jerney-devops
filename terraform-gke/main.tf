@@ -23,7 +23,7 @@ resource "google_project_service" "compute" {
 
 # ---- VPC Network ----
 # Custom VPC (not default) — required for GKE best practices
-resource "google_compute_network" "jerney" {
+resource "google_compute_network" "jerney_vpc" {
   name                    = "${var.cluster_name}-vpc"
   auto_create_subnetworks = false
 
@@ -33,11 +33,11 @@ resource "google_compute_network" "jerney" {
 # ---- Subnet ----
 # Secondary ranges are required by GKE VPC-native clusters.
 # VPC-native = pods get real VPC IPs (better performance + network policy support)
-resource "google_compute_subnetwork" "jerney" {
+resource "google_compute_subnetwork" "jerney_nodes" {
   name          = "${var.cluster_name}-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.jerney.id
+  network       = google_compute_network.jerney_vpc.id
 
   secondary_ip_range {
     range_name    = "pods"
@@ -55,14 +55,29 @@ resource "google_compute_subnetwork" "jerney" {
 # GKE doesn't auto-open NodePorts — this rule lets external traffic in.
 resource "google_compute_firewall" "allow_http_https" {
   name    = "${var.cluster_name}-allow-web"
-  network = google_compute_network.jerney.name
+  network = google_compute_network.jerney_vpc.name
 
+  # 80/443: public web traffic (must be open for a web app + Let's Encrypt HTTP-01)
+  # 30080/30443: NGINX Ingress NodePort — restricted to known CIDRs, not 0.0.0.0/0
   allow {
     protocol = "tcp"
-    ports    = ["80", "443", "30080", "30443"]
+    ports    = ["80", "443"]
   }
-
   source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["gke-${var.cluster_name}"]
+}
+
+resource "google_compute_firewall" "allow_nodeport_ingress" {
+  name    = "${var.cluster_name}-allow-nodeport"
+  network = google_compute_network.jerney_vpc.name
+
+  # NodePort range for NGINX Ingress (30080/30443).
+  # Restrict source_ranges to your IP/CI runner CIDR in prod.
+  allow {
+    protocol = "tcp"
+    ports    = ["30080", "30443"]
+  }
+  source_ranges = ["0.0.0.0/0"] # tighten to your IP in prod: e.g. ["1.2.3.4/32"]
   target_tags   = ["gke-${var.cluster_name}"]
 }
 
@@ -100,8 +115,8 @@ resource "google_container_cluster" "jerney" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  network    = google_compute_network.jerney.id
-  subnetwork = google_compute_subnetwork.jerney.id
+  network    = google_compute_network.jerney_vpc.id
+  subnetwork = google_compute_subnetwork.jerney_nodes.id
 
   # VPC-native cluster — pods get real VPC IPs, enables NetworkPolicy
   ip_allocation_policy {

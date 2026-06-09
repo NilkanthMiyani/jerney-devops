@@ -31,7 +31,7 @@ output "node_service_account" {
 
 output "vpc_name" {
   description = "VPC network name"
-  value       = google_compute_network.jerney.name
+  value       = google_compute_network.jerney_vpc.name
 }
 
 output "kubectl_config_command" {
