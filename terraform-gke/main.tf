@@ -50,15 +50,11 @@ resource "google_compute_subnetwork" "jerney_nodes" {
   }
 }
 
-# ---- Firewall: allow HTTP/HTTPS to nodes ----
-# NGINX Ingress runs as DaemonSet on NodePort 30080/30443.
-# GKE doesn't auto-open NodePorts — this rule lets external traffic in.
+# ---- Firewall: allow HTTP/HTTPS from internet ----
 resource "google_compute_firewall" "allow_http_https" {
   name    = "${var.cluster_name}-allow-web"
   network = google_compute_network.jerney_vpc.name
 
-  # 80/443: public web traffic (must be open for a web app + Let's Encrypt HTTP-01)
-  # 30080/30443: NGINX Ingress NodePort — restricted to known CIDRs, not 0.0.0.0/0
   allow {
     protocol = "tcp"
     ports    = ["80", "443"]
@@ -67,17 +63,18 @@ resource "google_compute_firewall" "allow_http_https" {
   target_tags   = ["gke-${var.cluster_name}"]
 }
 
-resource "google_compute_firewall" "allow_nodeport_ingress" {
-  name    = "${var.cluster_name}-allow-nodeport"
+# ---- Firewall: allow GCP Load Balancer health checks ----
+# GKE native ingress (Cloud Load Balancer) probes nodes from these GCP-owned ranges.
+# Without this rule health checks fail → backends marked unhealthy → 502 errors.
+resource "google_compute_firewall" "allow_gke_health_checks" {
+  name    = "${var.cluster_name}-allow-health-checks"
   network = google_compute_network.jerney_vpc.name
 
-  # NodePort range for NGINX Ingress (30080/30443).
-  # Restrict source_ranges to your IP/CI runner CIDR in prod.
   allow {
     protocol = "tcp"
-    ports    = ["30080", "30443"]
   }
-  source_ranges = ["0.0.0.0/0"] # tighten to your IP in prod: e.g. ["1.2.3.4/32"]
+  # GCP Load Balancer and health check prober source ranges (documented by Google)
+  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
   target_tags   = ["gke-${var.cluster_name}"]
 }
 
@@ -132,7 +129,7 @@ resource "google_container_cluster" "jerney" {
 
   addons_config {
     http_load_balancing {
-      disabled = true # enables GCP Cloud Load Balancer integration , we use nginx controller
+      disabled = false # GKE native ingress — provisions Cloud Load Balancer per Ingress resource
     }
     horizontal_pod_autoscaling {
       disabled = false # matches HPA config in k8s/helm/jerney/values.yaml

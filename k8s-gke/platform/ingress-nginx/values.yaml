@@ -1,9 +1,0 @@
-controller:
-  kind: DaemonSet          # one pod per node — no scheduling overhead
-  hostPort:
-    enabled: true          # binds directly to node ports 30080/30443
-  service:
-    type: NodePort
-    nodePorts:
-      http: "30080"
-      https: "30443"

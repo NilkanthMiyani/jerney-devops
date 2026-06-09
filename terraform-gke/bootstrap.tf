@@ -12,10 +12,10 @@
 # ingress, etc.) is deployed by ArgoCD from k8s-gke/apps/ in Git.
 #
 # GitOps deploy order after terraform apply:
-#   ArgoCD wave 0: ingress-nginx, cert-manager
+#   ArgoCD wave 0: cert-manager
 #   ArgoCD wave 1: cluster-issuer, prometheus-stack, signoz
-#   ArgoCD wave 2: argocd-ingress (uses NGINX from wave 0)
-#   ArgoCD wave 3: loki-stack, jerney
+#   ArgoCD wave 2: argocd-ingress, loki-stack  (GKE ingress controller is built-in, always ready)
+#   ArgoCD wave 3: jerney
 # ==============================================================
 
 # ---- GCP auth token for helm + kubernetes providers ----

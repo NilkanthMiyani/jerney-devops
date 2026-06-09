@@ -18,7 +18,7 @@ spec:
             type: ClusterIP
           ingress:
             enabled: true
-            className: nginx
+            className: gce
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
             hosts:

@@ -1,5 +1,4 @@
 # Managed by ArgoCD via apps/argocd-ingress.yaml (sync-wave 2).
-# Applied after ingress-nginx (wave 0) is running — no chicken-and-egg.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -7,9 +6,10 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # ArgoCD server runs plain HTTP (insecure mode) — tell the GCP LB to use HTTP to reach the backend
+    cloud.google.com/backend-protocol: "HTTP"
 spec:
-  ingressClassName: nginx
+  ingressClassName: gce
   tls:
     - hosts:
         - argocd.nilkanthprojects.site

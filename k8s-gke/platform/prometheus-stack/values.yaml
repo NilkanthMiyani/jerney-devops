@@ -5,7 +5,7 @@ grafana:
   # Grafana ingress managed here — no separate manifest needed
   ingress:
     enabled: true
-    ingressClassName: nginx
+    ingressClassName: gce
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
