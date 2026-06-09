@@ -1,38 +1,28 @@
 # ==============================================================
-# Jerney - DevSecOps CI/CD Pipeline (CircleCI)
-# Mirrors: .github/workflows/helm-ci-cd.yml
+# Jerney - GKE DevSecOps Pipeline (CircleCI)
 #
-# Key CircleCI concepts used here:
-#   - orbs       → reusable packages (like GitHub Actions "uses:")
-#   - executors  → reusable runtime environments
-#   - parameters → makes jobs accept inputs (enables matrix-style runs)
-#   - matrix     → run same job for [backend, frontend] in parallel
-#   - requires   → job dependency (like GitHub Actions "needs:")
-#   - context    → named secret store (like GitHub Actions secrets)
-#   - filters    → branch/tag conditions on workflow jobs
+# Separate pipeline for GKE infrastructure and deployments.
+# Original EC2 pipeline stays in config.yml — this file is
+# registered as a second pipeline in CircleCI Project Settings.
+#
+# HOW TO REGISTER THIS AS A SECOND PIPELINE:
+#   CircleCI → Project Settings → Pipelines → Add Pipeline
+#   Name: devsecops-gke
+#   Config file path: .circleci/config-gke.yml
+#   Trigger: push (auto)
+#
+# WHAT IT DOES DIFFERENTLY FROM config.yml (EC2):
+#   - IaC scan: scans terraform-gke/ and k8s-gke/
+#   - update-manifest: bumps image tags in k8s-gke/helm/jerney/values.yaml
+#     (ArgoCD on GKE watches this file, not k8s/helm/jerney/values.yaml)
 # ==============================================================
 
 version: 2.1
 
-# ---- Pipeline Parameter: manual trigger guard ----
-# Default is false → this pipeline is SKIPPED on every git push.
-# To run it: CircleCI UI → Project → Trigger Pipeline → run_ec2: true
-# Or via API:
-#   curl -X POST https://circleci.com/api/v2/project/github/NilkanthMiyani/jerney-devops/pipeline \
-#     -H "Circle-Token: $CIRCLE_TOKEN" -H "Content-Type: application/json" \
-#     -d '{"parameters": {"run_ec2": true}}'
-parameters:
-  run_ec2:
-    type: boolean
-    default: false
-
-# ---- Orbs (reusable packages) ----
-# GitHub Actions equivalent: "uses: actions/..."
 orbs:
-  node: circleci/node@5       # node install, npm cache
-  docker: circleci/docker@2   # docker login helpers
+  node: circleci/node@5
+  docker: circleci/docker@2
 
-# ---- Reusable executors (runtime environments) ----
 executors:
   node-executor:
     docker:
@@ -47,14 +37,13 @@ executors:
 jobs:
 
   # ---- Stage 1: Lint ----
-  # parameters: make this job reusable for backend and frontend
   lint:
     parameters:
       component:
-        type: string   # receives "backend" or "frontend"
+        type: string
     executor: node-executor
     steps:
-      - checkout       # CircleCI equivalent of actions/checkout
+      - checkout
       - node/install-packages:
           pkg-manager: npm
           app-dir: << parameters.component >>
@@ -88,8 +77,8 @@ jobs:
       - image: cimg/base:current
     steps:
       - checkout
-      - setup_remote_docker:         # spins up a remote Docker engine
-          docker_layer_caching: false  # set true on paid plan for speed
+      - setup_remote_docker:
+          docker_layer_caching: false
       - run:
           name: Build and push image
           command: |
@@ -101,8 +90,6 @@ jobs:
               -t docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:latest \
               ./<< parameters.component >>
 
-            # Only push on branch commits (not on PRs)
-            # CircleCI equivalent of: if: github.event_name != 'pull_request'
             if [ "$CIRCLE_PR_NUMBER" = "" ]; then
               docker push docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:${IMAGE_TAG}
               docker push docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:latest
@@ -138,8 +125,10 @@ jobs:
               --timeout 10m \
               jerney-<< parameters.component >>:scan || true
 
-  # ---- Stage 5: IaC Scan (Checkov) ----
-  iac-scan:
+  # ---- Stage 5: IaC Scan (Checkov) — GKE ----
+  # Scans terraform-gke/ (google provider) and k8s-gke/ manifests.
+  # No --skip-check needed: GKE checks are less strict than EC2 checks.
+  iac-scan-gke:
     executor: python-executor
     steps:
       - checkout
@@ -147,12 +136,12 @@ jobs:
           name: Install Checkov
           command: pip install checkov
       - run:
-          name: Checkov - Terraform
-          command: checkov -d terraform-ec2/ --framework terraform --skip-check CKV_AWS_39,CKV_AWS_58 || true
+          name: Checkov - Terraform (terraform-gke/)
+          command: checkov -d terraform-gke/ --framework terraform || true
       - run:
-          name: Checkov - Kubernetes manifests
-          # || true: Checkov crashes on Helm templates (Go {{ }} syntax is not valid YAML)
-          command: checkov -d k8s/ --framework kubernetes --soft-fail || true
+          name: Checkov - Kubernetes (k8s-gke/)
+          # --soft-fail: Helm templates have Go {{ }} syntax which isn't valid YAML
+          command: checkov -d k8s-gke/ --framework kubernetes --soft-fail || true
 
   # ---- Stage 6: Dockerfile Lint (Hadolint) ----
   dockerfile-lint:
@@ -167,9 +156,10 @@ jobs:
           name: Run Hadolint
           command: hadolint << parameters.component >>/Dockerfile || true
 
-  # ---- Stage 7: Update Helm Values ----
-  # Runs only on main branch (see workflow filters below)
-  update-manifest:
+  # ---- Stage 7: Update GKE Helm Values ----
+  # Updates k8s-gke/helm/jerney/values.yaml with the new image tag.
+  # ArgoCD on GKE watches this file — the tag bump triggers a rolling deploy.
+  update-manifest-gke:
     executor: node-executor
     steps:
       - checkout
@@ -180,82 +170,64 @@ jobs:
               https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
             sudo chmod a+x /usr/local/bin/yq
       - run:
-          name: Update Helm image tags
+          name: Update image tags in k8s-gke/helm/jerney/values.yaml
           command: |
             IMAGE_TAG=$(git rev-parse --short HEAD)
-            echo "Updating images to tag: ${IMAGE_TAG}"
-            yq e ".image.backend.tag = \"${IMAGE_TAG}\"" -i k8s/helm/jerney/values.yaml
-            yq e ".image.frontend.tag = \"${IMAGE_TAG}\"" -i k8s/helm/jerney/values.yaml
+            echo "Updating GKE images to tag: ${IMAGE_TAG}"
+            yq e ".image.backend.tag = \"${IMAGE_TAG}\"" -i k8s-gke/helm/jerney/values.yaml
+            yq e ".image.frontend.tag = \"${IMAGE_TAG}\"" -i k8s-gke/helm/jerney/values.yaml
       - run:
           name: Commit and push manifest update
           command: |
             git config user.name "circleci-bot"
             git config user.email "circleci-bot@noreply"
-            git add k8s/helm/jerney/values.yaml
+            git add k8s-gke/helm/jerney/values.yaml
             git diff --cached --quiet && echo "No changes" && exit 0
-            git commit -m "ci: update helm image tags to $(git rev-parse --short HEAD) [skip ci]"
+            git commit -m "ci: update gke helm image tags to $(git rev-parse --short HEAD) [skip ci]"
             git pull --rebase origin main
-            # GITHUB_TOKEN must be a PAT added in CircleCI Project Settings > Env Vars
             git push https://${GITHUB_TOKEN}@github.com/NilkanthMiyani/jerney-devops.git main
 
 # ==============================================================
-# WORKFLOW — wires jobs together with dependencies and conditions
-# GitHub Actions equivalent: the top-level "jobs:" with "needs:"
+# WORKFLOW — GKE pipeline (auto on every push)
 # ==============================================================
 workflows:
-  devsecops:
-    when: << pipeline.parameters.run_ec2 >>
+  devsecops-gke:
     jobs:
-      # Stage 1 — runs for both components in parallel (matrix)
       - lint:
           matrix:
             parameters:
               component: [backend, frontend]
 
-      # Stage 2 — waits for ALL lint matrix variants to pass
       - sca:
-          requires:
-            - lint
+          requires: [lint]
           matrix:
             parameters:
               component: [backend, frontend]
 
-      # Stage 3 — waits for sca, needs dockerhub context for secrets
-      # context: group of env vars defined in CircleCI org settings
-      # GitHub Actions equivalent: secrets.DOCKERHUB_USERNAME / secrets.DOCKERHUB_TOKEN
       - build:
-          requires:
-            - sca
-          context: dockerhub        # set DOCKERHUB_USERNAME + DOCKERHUB_TOKEN here
+          requires: [sca]
+          context: dockerhub
           matrix:
             parameters:
               component: [backend, frontend]
 
-      # Stage 4 — image scan after build
       - image-scan:
-          requires:
-            - build
+          requires: [build]
           matrix:
             parameters:
               component: [backend, frontend]
 
-      # Stage 5 — runs in parallel with sca (like GitHub Actions "needs: lint")
-      - iac-scan:
-          requires:
-            - lint
+      - iac-scan-gke:
+          requires: [lint]
 
-      # Stage 6 — runs independently (no requires = runs immediately)
       - dockerfile-lint:
           matrix:
             parameters:
               component: [backend, frontend]
 
-      # Stage 7 — only on main branch, after both builds complete
-      # filters: branch condition (GitHub Actions equivalent: "if: github.ref == 'refs/heads/main'")
-      - update-manifest:
-          requires:
-            - build
-          context: dockerhub        # also needs GITHUB_TOKEN in this context or project settings
+      - update-manifest-gke:
+          requires: [build]
+          context: dockerhub
           filters:
             branches:
               only: main
