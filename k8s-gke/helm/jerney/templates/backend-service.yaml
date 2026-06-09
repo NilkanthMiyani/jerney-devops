@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/name: {{ .Chart.Name }}-backend
     app.kubernetes.io/part-of: {{ .Chart.Name }}
     app.kubernetes.io/component: backend
+  annotations:
+    {{- toYaml .Values.service.backend.annotations | nindent 4 }}
 spec:
   type: {{ .Values.service.backend.type }}
   selector:

@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/name: {{ .Chart.Name }}-frontend
     app.kubernetes.io/part-of: {{ .Chart.Name }}
     app.kubernetes.io/component: frontend
+  annotations:
+    {{- toYaml .Values.service.frontend.annotations | nindent 4 }}
 spec:
   type: {{ .Values.service.frontend.type }}
   selector:

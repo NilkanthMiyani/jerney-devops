@@ -44,10 +44,22 @@ resource "helm_release" "argocd" {
   timeout          = 300
 
   set {
-    # Runs ArgoCD server without TLS — NGINX Ingress handles TLS termination
+    # Runs ArgoCD server without TLS — GKE LB handles TLS termination
     name  = "configs.params.server\\.insecure"
     value = "true"
   }
+
+  values = [
+    yamlencode({
+      server = {
+        service = {
+          annotations = {
+            "cloud.google.com/neg" = "{\"ingress\": true}"
+          }
+        }
+      }
+    })
+  ]
 
   depends_on = [google_container_node_pool.jerney_nodes]
 }

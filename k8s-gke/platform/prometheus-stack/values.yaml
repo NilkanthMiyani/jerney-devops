@@ -2,6 +2,8 @@ grafana:
   adminPassword: admin123
   service:
     type: ClusterIP
+    annotations:
+      cloud.google.com/neg: '{"ingress": true}'
   # Grafana ingress managed here — no separate manifest needed
   ingress:
     enabled: true
