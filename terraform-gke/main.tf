@@ -132,7 +132,7 @@ resource "google_container_cluster" "jerney" {
 
   addons_config {
     http_load_balancing {
-      disabled = false # enables GCP Cloud Load Balancer integration
+      disabled = true # enables GCP Cloud Load Balancer integration , we use nginx controller
     }
     horizontal_pod_autoscaling {
       disabled = false # matches HPA config in k8s/helm/jerney/values.yaml
@@ -181,7 +181,7 @@ resource "google_container_node_pool" "jerney_nodes" {
   }
 
   management {
-    auto_repair  = true  # GCP replaces unhealthy nodes automatically
-    auto_upgrade = true  # keeps nodes on latest GKE patch
+    auto_repair  = true # GCP replaces unhealthy nodes automatically
+    auto_upgrade = true # keeps nodes on latest GKE patch
   }
 }

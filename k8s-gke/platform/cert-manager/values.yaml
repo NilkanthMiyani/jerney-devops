@@ -1,0 +1,2 @@
+crds:
+  enabled: true   # installs cert-manager CRDs as part of the Helm release

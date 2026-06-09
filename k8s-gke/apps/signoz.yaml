@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.signoz.io
+    chart: signoz
+    targetRevision: "0.55.1"
+    helm:
+      valuesObject:
+        frontend:
+          service:
+            type: ClusterIP
+          ingress:
+            enabled: true
+            className: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+            hosts:
+              - host: signoz.nilkanthprojects.site
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - secretName: signoz-tls
+                hosts:
+                  - signoz.nilkanthprojects.site
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
