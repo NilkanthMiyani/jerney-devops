@@ -1,0 +1,16 @@
+# ==============================================================
+# Jerney - GKE-specific Helm value overrides
+#
+# These values are layered ON TOP of k8s/helm/jerney/values.yaml
+# via ArgoCD multi-source (see manifests/argocd-app-jerney.yaml).
+#
+# Only override what is different from the EC2/kubeadm base.
+# ==============================================================
+
+postgresql:
+  primary:
+    persistence:
+      # GKE default StorageClass for single ReadWriteOnce volumes.
+      # EC2/kubeadm uses "local-path" (Rancher local-path-provisioner).
+      # GKE's standard-rwo is backed by Persistent Disk — survives node replacement.
+      storageClass: "standard-rwo"

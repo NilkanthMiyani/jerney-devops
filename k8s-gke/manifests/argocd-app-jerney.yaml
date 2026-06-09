@@ -1,0 +1,42 @@
+# ==============================================================
+# ArgoCD Application — Jerney on GKE
+#
+# Uses multi-source (ArgoCD >= 2.6) to merge two value files:
+#   1. k8s/helm/jerney/values.yaml        ← base (shared with EC2)
+#   2. k8s-gke/helm/jerney/values-gke.yaml ← GKE overrides (storageClass etc.)
+#
+# The $values ref is a named alias for the second source entry.
+# ArgoCD resolves $values/* paths relative to that source's root.
+# ==============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jerney
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Source 1: Helm chart + base values
+    - repoURL: https://github.com/NilkanthMiyani/jerney-devops.git
+      targetRevision: main
+      path: k8s/helm/jerney
+      helm:
+        valueFiles:
+          - values.yaml                              # base values (EC2 + GKE shared)
+          - $values/k8s-gke/helm/jerney/values-gke.yaml  # GKE overrides
+
+    # Source 2: ref-only source — provides the $values alias above
+    - repoURL: https://github.com/NilkanthMiyani/jerney-devops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jerney
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
