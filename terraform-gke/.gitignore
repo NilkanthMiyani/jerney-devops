@@ -1,0 +1,16 @@
+# Terraform state — contains cluster credentials and sensitive outputs
+*.tfstate
+*.tfstate.*
+
+# Provider binaries and plugins
+.terraform/
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files (local developer overrides, not for source control)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
