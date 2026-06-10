@@ -21,14 +21,10 @@ terraform {
     }
   }
 
-  # Remote backend — required for team use and production.
-  # Uncomment and set bucket/prefix when sharing state across machines.
-  # GCS provides built-in locking (no separate lock table needed).
-  #
-  # backend "gcs" {
-  #   bucket = "YOUR_PROJECT_ID-terraform-state"
-  #   prefix = "jerney-gke/state"
-  # }
+  backend "gcs" {
+    bucket = "project-f26ca60a-38f7-49d3-b7b-tf-state"
+    prefix = "jerney-gke/state"
+  }
 }
 
 provider "google" {
