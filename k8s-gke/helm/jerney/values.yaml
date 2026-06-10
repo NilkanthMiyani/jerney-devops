@@ -17,15 +17,13 @@ hpa:
     minReplicas: 1
     maxReplicas: 10
     targetCPU: 50
-
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: ccf41e6
+    tag: 99a1b11
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: ccf41e6
-
+    tag: 99a1b11
 postgresql:
   enabled: true
   image:
@@ -40,10 +38,8 @@ postgresql:
       # GKE standard-rwo = Persistent Disk (ReadWriteOnce).
       # Survives node replacement — unlike local-path on kubeadm which is node-local.
       storageClass: "standard-rwo"
-
 otel:
   endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
-
 service:
   frontend:
     type: ClusterIP
@@ -59,6 +55,5 @@ service:
     type: ClusterIP
     port: 5432
     targetPort: 5432
-
 ingress:
-  enabled: false  # routing handled by GKE Gateway HTTPRoute in k8s-gke/platform/gateway/
+  enabled: false # routing handled by GKE Gateway HTTPRoute in k8s-gke/platform/gateway/
