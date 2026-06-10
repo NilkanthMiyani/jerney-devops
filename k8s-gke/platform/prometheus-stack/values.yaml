@@ -2,8 +2,7 @@ grafana:
   adminPassword: admin123
   service:
     type: ClusterIP
-    annotations:
-      cloud.google.com/neg: '{"ingress": true}'
+    annotations: {}
   ingress:
     enabled: false  # routing handled by GKE Gateway HTTPRoute in k8s-gke/platform/gateway/
 

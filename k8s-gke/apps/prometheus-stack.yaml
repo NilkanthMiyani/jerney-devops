@@ -20,6 +20,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      managedFieldsManagers:
+        - prometheus-operator
+    - kind: Service
+      jsonPointers:
+        - /metadata/annotations/cloud.google.com~1neg
+        - /metadata/annotations/cloud.google.com~1neg-status
   syncPolicy:
     automated:
       prune: true
