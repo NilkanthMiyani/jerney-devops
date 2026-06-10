@@ -21,10 +21,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      jqPathExpressions:
-        - .status.terminatingReplicas
     - kind: Service
       jsonPointers:
         - /metadata/annotations/cloud.google.com~1neg
@@ -35,5 +31,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true   # required: kube-prometheus-stack CRDs exceed kubectl annotation size limit
-      - RespectIgnoreDifferences=true
