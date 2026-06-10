@@ -37,7 +37,7 @@ resource "helm_release" "argocd" {
   name             = "argo-cd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "7.7.3"
+  version          = "9.5.20" # ArgoCD v3.4.3 — K8s 1.35-aware schemas fix StatefulSet SSA diff errors
   namespace        = "argocd"
   create_namespace = true
   wait             = true # blocks until all ArgoCD pods are Running
@@ -56,14 +56,6 @@ resource "helm_release" "argocd" {
           annotations = {
             "cloud.google.com/neg" = "{\"ingress\": true}"
           }
-        }
-      }
-      configs = {
-        cm = {
-          # K8s 1.35 adds StatefulSet.status.terminatingReplicas which ArgoCD 2.13's
-          # structured-merge-diff schema doesn't know about. Strip it globally before
-          # schema validation so prometheus-stack StatefulSets don't get ComparisonError.
-          "resource.customizations.ignoreDifferences.apps_StatefulSet" = "jqPathExpressions:\n- .status.terminatingReplicas\n"
         }
       }
     })
