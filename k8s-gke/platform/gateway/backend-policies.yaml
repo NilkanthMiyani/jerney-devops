@@ -13,5 +13,5 @@ spec:
     name: jerney-backend
   default:
     healthCheck:
-      requestPath: /api/posts
+      requestPath: /api/health
       type: HTTP
