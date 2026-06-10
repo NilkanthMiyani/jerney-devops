@@ -10,10 +10,10 @@ spec:
   source:
     repoURL: https://charts.signoz.io
     chart: signoz
-    targetRevision: "0.55.1"
+    targetRevision: "0.127.1"
     helm:
       valuesObject:
-        frontend:
+        signoz:
           service:
             type: ClusterIP
           ingress:

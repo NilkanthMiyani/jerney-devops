@@ -10,3 +10,6 @@ promtail:
 
 grafana:
   enabled: false  # already deployed via prometheus-stack
+  sidecar:
+    datasources:
+      isDefaultDatasource: false  # Prometheus is the default; Loki must not conflict
