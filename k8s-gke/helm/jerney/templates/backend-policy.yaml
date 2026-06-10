@@ -1,0 +1,14 @@
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: {{ .Chart.Name }}-backend-health
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: {{ .Chart.Name }}-backend
+  default:
+    healthCheck:
+      requestPath: /api/health
+      type: HTTP
