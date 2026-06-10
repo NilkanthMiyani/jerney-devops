@@ -3,6 +3,8 @@ kind: GCPBackendPolicy
 metadata:
   name: {{ .Chart.Name }}-backend-health
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   targetRef:
     group: ""
