@@ -58,6 +58,14 @@ resource "helm_release" "argocd" {
           }
         }
       }
+      configs = {
+        cm = {
+          # K8s 1.35 adds StatefulSet.status.terminatingReplicas which ArgoCD 2.13's
+          # structured-merge-diff schema doesn't know about. Strip it globally before
+          # schema validation so prometheus-stack StatefulSets don't get ComparisonError.
+          "resource.customizations.ignoreDifferences.apps_StatefulSet" = "jqPathExpressions:\n- .status.terminatingReplicas\n"
+        }
+      }
     })
   ]
 
