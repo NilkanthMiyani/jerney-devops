@@ -49,14 +49,12 @@ service:
     type: ClusterIP
     port: 80
     targetPort: 8080
-    annotations:
-      cloud.google.com/neg: '{"ingress": true}'
+    annotations: {}
   backend:
     type: ClusterIP
     port: 5000
     targetPort: 5000
-    annotations:
-      cloud.google.com/neg: '{"ingress": true}'
+    annotations: {}
   db:
     type: ClusterIP
     port: 5432

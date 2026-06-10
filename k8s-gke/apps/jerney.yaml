@@ -21,13 +21,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
   ignoreDifferences:
-    - group: networking.gke.io
-      kind: GCPBackendPolicy
+    - kind: Service
       jsonPointers:
-        - /spec/default/healthCheck/checkIntervalSec
-        - /spec/default/healthCheck/timeoutSec
-        - /spec/default/healthCheck/healthyThreshold
-        - /spec/default/healthCheck/unhealthyThreshold
-        - /spec/default/healthCheck/port
-        - /spec/default/healthCheck/portSpecification
-        - /spec/default/healthCheck/logConfig
+        - /metadata/annotations/cloud.google.com~1neg
+        - /metadata/annotations/cloud.google.com~1neg-status
