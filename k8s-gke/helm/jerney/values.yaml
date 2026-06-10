@@ -63,6 +63,4 @@ service:
     targetPort: 5432
 
 ingress:
-  enabled: true
-  host: jerney.nilkanthprojects.site
-  clusterIssuer: letsencrypt-prod
+  enabled: false  # routing handled by GKE Gateway HTTPRoute in k8s-gke/platform/gateway/

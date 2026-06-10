@@ -129,11 +129,15 @@ resource "google_container_cluster" "jerney" {
 
   addons_config {
     http_load_balancing {
-      disabled = false # GKE native ingress — provisions Cloud Load Balancer per Ingress resource
+      disabled = false # required for GKE Gateway API (Cloud Load Balancer integration)
     }
     horizontal_pod_autoscaling {
       disabled = false # matches HPA config in k8s/helm/jerney/values.yaml
     }
+  }
+
+  gateway_api_config {
+    channel = "CHANNEL_STANDARD" # enables GKE Gateway API controller
   }
 
   # Allow `terraform destroy` to work — set true in prod

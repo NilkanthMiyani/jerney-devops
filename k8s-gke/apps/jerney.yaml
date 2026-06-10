@@ -4,7 +4,7 @@ metadata:
   name: jerney
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"   # last: needs ingress-nginx + cert-manager ready
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   source:

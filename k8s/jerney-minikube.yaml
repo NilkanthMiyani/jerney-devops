@@ -385,4 +385,3 @@ spec:
       ports:
         - port: 5000
           protocol: TCP
-          

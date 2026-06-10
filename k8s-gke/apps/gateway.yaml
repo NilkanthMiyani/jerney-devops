@@ -1,28 +1,30 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cluster-issuer
+  name: gateway
   namespace: argocd
   annotations:
-    # Wave 1: runs after cert-manager (wave 0) installs the CRDs.
-    # retry handles the race: CRDs may not be ready the first attempt.
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://github.com/NilkanthMiyani/jerney-devops.git
     targetRevision: main
-    path: k8s-gke/platform/cert-manager/manifests
+    path: k8s-gke/platform/gateway
   destination:
     server: https://kubernetes.default.svc
-    namespace: cert-manager
+    namespace: networking
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
     retry:
-      limit: 5
+      limit: 10
       backoff:
-        duration: 10s
+        duration: 15s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 5m

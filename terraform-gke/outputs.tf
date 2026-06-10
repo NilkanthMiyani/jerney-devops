@@ -38,3 +38,15 @@ output "kubectl_config_command" {
   description = "Run this after `terraform apply` to configure kubectl"
   value       = "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.zone} --project ${var.project_id}"
 }
+
+output "dns_cname_records" {
+  description = "Add these CNAME records to your DNS provider to activate Google-managed SSL certificates"
+  value = {
+    for k, v in google_certificate_manager_dns_authorization.domains :
+    local.domains[k] => {
+      record_name  = v.dns_resource_record[0].name
+      record_type  = v.dns_resource_record[0].type
+      record_value = v.dns_resource_record[0].data
+    }
+  }
+}

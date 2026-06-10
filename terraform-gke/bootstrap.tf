@@ -40,7 +40,7 @@ resource "helm_release" "argocd" {
   version          = "7.7.3"
   namespace        = "argocd"
   create_namespace = true
-  wait             = true  # blocks until all ArgoCD pods are Running
+  wait             = true # blocks until all ArgoCD pods are Running
   timeout          = 300
 
   set {
