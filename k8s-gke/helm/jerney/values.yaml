@@ -20,10 +20,10 @@ hpa:
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: 194f05b
+    tag: e03483b
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: 194f05b
+    tag: e03483b
 postgresql:
   enabled: true
   image:
