@@ -20,4 +20,14 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+  ignoreDifferences:
+    - group: networking.gke.io
+      kind: GCPBackendPolicy
+      jsonPointers:
+        - /spec/default/healthCheck/checkIntervalSec
+        - /spec/default/healthCheck/timeoutSec
+        - /spec/default/healthCheck/healthyThreshold
+        - /spec/default/healthCheck/unhealthyThreshold
+        - /spec/default/healthCheck/port
+        - /spec/default/healthCheck/portSpecification
+        - /spec/default/healthCheck/logConfig
