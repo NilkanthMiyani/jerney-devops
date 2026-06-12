@@ -95,7 +95,7 @@ jobs:
               docker push docker.io/$DOCKERHUB_USERNAME/jerney-<< parameters.component >>:latest
             fi
 
-  # ---- Stage 4: Image Scan (Trivy) ----
+  # ---- Stage 4: Image Scan (Trivy) ---- 
   image-scan:
     parameters:
       component:
