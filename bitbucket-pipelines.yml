@@ -1,0 +1,66 @@
+# Jerney backend - Bitbucket Pipeline
+#
+# Repository variables: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (secured)
+# Repo settings → SSH keys: add an Access Key with write permission
+
+image: node:20
+
+definitions:
+  caches:
+    backend-node: backend/node_modules
+  services:
+    docker:
+      memory: 3072
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Backend CI/CD
+          services:
+            - docker
+          caches:
+            - backend-node
+            - docker
+          clone:
+            depth: full
+          script:
+            - export IMAGE="docker.io/${DOCKERHUB_USERNAME}/jerney-backend"
+            - export TAG="${BITBUCKET_BUILD_NUMBER}-${BITBUCKET_COMMIT:0:7}"
+
+            # ---- Test ----
+            - cd backend
+            - npm ci
+            - npm run lint
+            - npm test --if-present
+            - cd ..
+
+            # ---- Build ----
+            - echo "${DOCKERHUB_TOKEN}" | docker login docker.io -u "${DOCKERHUB_USERNAME}" --password-stdin
+            - docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" ./backend
+
+            # ---- Trivy scan: report first (never fails), then gate ----
+            - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+              -v "${BITBUCKET_CLONE_DIR}:/work" -w /work
+              aquasec/trivy:0.58.0 image --severity HIGH,CRITICAL --ignore-unfixed
+              --format json --output trivy-report.json "${IMAGE}:${TAG}"
+            - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+              aquasec/trivy:0.58.0 image --severity HIGH,CRITICAL --ignore-unfixed
+              --exit-code 1 --quiet "${IMAGE}:${TAG}"
+
+            # ---- Push ----
+            - docker push "${IMAGE}:${TAG}"
+            - docker push "${IMAGE}:latest"
+
+            # ---- Update manifest & push ----
+            - grep -q "image: ${IMAGE}:" k8s/backend.yaml || { echo "image line not found"; exit 1; }
+            - sed -i -E "s#^(\s*image:\s*)docker\.io/[^/]+/jerney-backend:.*#\1${IMAGE}:${TAG}#" k8s/backend.yaml
+            - git remote set-url origin "git@bitbucket.org:${BITBUCKET_REPO_FULL_NAME}.git"
+            - git config user.name "bitbucket-pipelines"
+            - git config user.email "pipelines@jerney.local"
+            - git checkout "${BITBUCKET_BRANCH}"
+            - git add k8s/backend.yaml
+            - git diff --cached --quiet || git commit -m "ci: update backend image to ${TAG} [skip ci]"
+            - git push origin "${BITBUCKET_BRANCH}"
+          artifacts:
+            - trivy-report.json

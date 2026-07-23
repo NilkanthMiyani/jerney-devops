@@ -43,9 +43,6 @@ services:
       DB_USER: jerney_user
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: jerney_db
-      OTEL_RESOURCE_ATTRIBUTES: "service.name=jerney-backend"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://signoz-otel-collector:4317"
-      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     volumes:
       - ./data/backend:/app/data
     expose:
@@ -68,14 +65,12 @@ services:
         reservations:
           memory: 128m
           cpus: '0.25'
-    networks:
-      - signoz-net
-      - default
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+#    build:
+#    context: ./frontend
+#      dockerfile: Dockerfile
+    image: nmiyani/jerney-frontend:8175f40
     container_name: jerney-frontend
     restart: unless-stopped
     ports:
@@ -92,7 +87,3 @@ services:
         reservations:
           memory: 64m
           cpus: '0.10'
-
-networks:
-  signoz-net:
-    external: true

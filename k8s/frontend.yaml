@@ -1,0 +1,79 @@
+# ---- Frontend Deployment ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jerney-frontend
+  namespace: jerney
+  labels:
+    app.kubernetes.io/name: jerney-frontend
+    app.kubernetes.io/part-of: jerney
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jerney-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jerney-frontend
+        app.kubernetes.io/part-of: jerney
+        app.kubernetes.io/component: frontend
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          image: docker.io/nmiyani/jerney-frontend:206bc00
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Nginx needs write for cache/pid
+            runAsNonRoot: true
+            runAsUser: 101 # nginx user UID in alpine
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+
+---
+# ---- Frontend Service (NodePort — for access via port-forward or node IP) ----
+# NOTE: Changed from LoadBalancer because this AWS account does not support
+# creating load balancers. Use `kubectl port-forward svc/jerney-frontend 8080:80 -n jerney`
+# to access the frontend locally.
+apiVersion: v1
+kind: Service
+metadata:
+  name: jerney-frontend
+  namespace: jerney
+  labels:
+    app.kubernetes.io/name: jerney-frontend
+    app.kubernetes.io/part-of: jerney
+    app.kubernetes.io/component: frontend
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: jerney-frontend
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP

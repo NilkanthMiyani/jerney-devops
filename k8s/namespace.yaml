@@ -1,0 +1,7 @@
+# ---- Namespace ----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jerney
+  labels:
+    app.kubernetes.io/part-of: jerney

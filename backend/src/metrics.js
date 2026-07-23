@@ -33,7 +33,7 @@ function metricsMiddleware(req, res, next) {
   const start = process.hrtime();
 
   res.on('finish', () => {
-    const [s, ns] = process.hrtime(start);
+    const [s, ns] = process.hrtime(start);  
     const duration = s + ns / 1e9;
     const route = normalizeRoute(req);
     const labels = { method: req.method, route, status_code: res.statusCode };

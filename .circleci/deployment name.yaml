@@ -1,0 +1,4 @@
+deployment  name 
+dev        - dev-nginx-deployment
+staging    - staging-nginx-deployment
+prod       - prod-nginx-deployment
